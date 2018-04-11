@@ -6,7 +6,7 @@
 # /(   )\
 #  ^^-^^
 
-# This script makes a Quaternary Triangular Mesh (QTM) to tessellate the world based
+# This script makes a Quarternary Triangular Mesh (QTM) to tessellate the world based
 # on an octohedron, based on Geoffrey Dutton's conception:
 #
 # Dutton, Geoffrey H. "Planetary Modelling via Hierarchical Tessellation." In Procedings of the
@@ -14,7 +14,7 @@
 # https://pdfs.semanticscholar.org/875e/12ce948012b3eced58c0f1470dba51ef87ef.pdf
 #
 # This script written by Paulo Raposo (pauloj.raposo [at] outlook.com) and Randall Brown
-# (ranbrown8448 [at] gmail.com).
+# (ranbrown8448 [at] gmail.com). Under MIT license.
 #
 # Dependencies: nvector (see https://pypi.python.org/pypi/nvector and http://www.navlab.net/nvector),
 #               OGR Python bindings (packaged with GDAL).
@@ -27,11 +27,8 @@ from osgeo import ogr, osr
 
 
 def GetGeodeticMidpoint(vert1, vert2):
-
     """Given two Vertices, return the geodetic midpoint of the great circle arc between them, on the WGS84 ellipsoid. Uses nvector."""
-
     # see http://nvector.readthedocs.org/en/latest/src/overview.html?highlight=midpoint#description
-
     wgs84 = nv.FrameE(name='WGS84')
     n_EB_E_t0 = wgs84.GeoPoint(vert1[0], vert1[1], degrees=True).to_nvector()
     n_EB_E_t1 = wgs84.GeoPoint(vert2[0], vert2[1], degrees=True).to_nvector()
@@ -43,9 +40,7 @@ def GetGeodeticMidpoint(vert1, vert2):
 
 
 def constructGeometry(facet):
-
     """Accepting a list from this script that stores vertices, return an OGR Geometry polygon object."""
-
     ring = ogr.Geometry(ogr.wkbLinearRing)
     if len(facet) == 5:
         # This is a triangle facet of format (vert,vert,vert,vert,orient)
@@ -61,7 +56,6 @@ def constructGeometry(facet):
 
 
 def divideFacet(aFacet):
-
     """Will always return four facets, given one, rectangle or triangle."""
 
     # Important: For all facets, first vertex built is always the most south-then-west, going clockwise thereafter.
@@ -84,13 +78,10 @@ def divideFacet(aFacet):
         # Find the geodetic bisectors of the three sides, store in sequence using edges defined
         # by aFacet vertex indeces: [0]&[1] , [1]&[2] , [2]&[3]
         newVerts = []
-
         for i in range(3):
-
             newVerts.append(GetGeodeticMidpoint(aFacet[i], aFacet[i + 1]))
 
         if orient == "u":
-
             #          In the case of up facets, there will be one "top" facet
             #          and 3 "bottom" facets after subdivision; we build them in the sequence inside the triangles:
             #
@@ -109,7 +100,6 @@ def divideFacet(aFacet):
             newFacet3 = [newVerts[2], newVerts[1], aFacet[2], newVerts[2], "u"]
 
         if orient == "d":
-
             #          In the case of down facets, there will be three "top" facets
             #          and 1 "bottom" facet after subdivision; we build them in the sequence inside the triangles:
             #
@@ -155,9 +145,7 @@ def divideFacet(aFacet):
             newVerts = []
 
             for i in range(4):
-
                 if i != 1:
-
                     # on iter == 1 we're going across the north pole - don't need this midpoint.
                     newVerts.append(GetGeodeticMidpoint(aFacet[i], aFacet[i + 1]))
 
@@ -186,9 +174,7 @@ def divideFacet(aFacet):
             newVerts = []
 
             for i in range(4):
-
                 if i != 3:
-
                     # on iter == 3 we're going across the south pole - don't need this midpoint
                     newVerts.append(GetGeodeticMidpoint(aFacet[i], aFacet[i + 1]))
 
@@ -203,23 +189,22 @@ def divideFacet(aFacet):
 
 
 def printandlog(msg):
-
     """Given a string, this will both log it and print it to the console."""
-
     print(msg)
     logging.info(msg)
 
 
 def main():
-
     # Input shell arguments
-    parser = argparse.ArgumentParser(description='Builds a Dutton QTM (see citations in source code or README file) and outputs it as GeoJSON files in WGS 84 coordinates.')
-    parser.add_argument('OUTDIR', help='Full path to output directory for the product QTM files.')
-    parser.add_argument('LEVELS', help='Integer number of levels to generate.')
+    parser = argparse.ArgumentParser(description='Builds a Dutton QTM (see citations in source code) and outputs it as a GeoJSON file in WGS84 coordinates.')
+
+    # parser.add_argument('LEVELS', help='Integer number of levels to subdivide the QTM. Minimum of 1.')
+    parser.add_argument('OUTSHPFILEDIR', help='Full path to output directory for the product QTM shapefiles.')
+    parser.add_argument('LEVELS', help='Number of levels to generate. Give as an integer.')
     args = parser.parse_args()
 
     nLevels = int(args.LEVELS)
-    outFileDir = args.OUTDIR
+    outFileDir = args.OUTSHPFILEDIR
 
     # Log file setup
     dirPath = outFileDir
@@ -268,19 +253,20 @@ def main():
     ID = {}
     for lvl in range(nLevels):
 
-        printandlog("Working on level {}, {}.".format(str(lvl), datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        print("")
+        printandlog("Working on level " + str(lvl))
 
         levelFacets[lvl] = []
         ID[lvl] = []
         previousLevel = None
 
         # Prepare a shapefile for this level
-        outFileName = "qtmlvl" + str(lvl) + ".geojson"
-        levelShapefiles.append(outFileName)
+        outSHPFileName = "qtmlvl" + str(lvl) + ".geojson"
+        levelShapefiles.append(outSHPFileName)
         sRef = osr.SpatialReference()
         sRef.ImportFromWkt(wktCoordSys)
         driver = ogr.GetDriverByName('GeoJSON')
-        outFile = os.path.join(outFileDir, outFileName)
+        outFile = os.path.join(outFileDir, outSHPFileName)
         dst_ds = driver.CreateDataSource(outFile)
         fName = os.path.splitext(os.path.split(outFile)[1])[0]
         dst_layer = dst_ds.CreateLayer(fName, sRef, geom_type=ogr.wkbPolygon)
@@ -356,15 +342,13 @@ def main():
                 iterlabel += 1
                 i = i + 1
 
-            print("")
-
         if previousLevel:
             del levelFacets[previousLevel]  # to free resources
 
         dst_ds.Destroy()  # Destroy the data source to free resouces
 
-
     endTime = datetime.datetime.now()
+    print("")
     printandlog("Finished, " + str(endTime))
     elapsed = endTime - startTime
     printandlog("Total time for " + str(nLevels) + " levels: " + str(elapsed))
@@ -374,5 +358,4 @@ def main():
 
 
 if __name__ == '__main__':
-    
     main()
