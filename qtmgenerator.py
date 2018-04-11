@@ -58,7 +58,7 @@ def constructGeometry(facet):
 def divideFacet(aFacet):
     """Will always return four facets, given one, rectangle or triangle."""
 
-    # Important: For all facets, first vertex built is always the most south-then-west, going clockwise thereafter.
+    # Important: For all facets, first vertex built is always the most south-then-west, going counter-clockwise thereafter.
 
     if len(aFacet) == 5:
 
@@ -85,37 +85,37 @@ def divideFacet(aFacet):
             #          In the case of up facets, there will be one "top" facet
             #          and 3 "bottom" facets after subdivision; we build them in the sequence inside the triangles:
             #
-            #                   1
+            #                   2
             #                  /\         Outside the triangle, a number is the index of the vertex in aFacet,
             #                 / 1\        and a number with an asterisk is the index of the vertex in newVerts.
-            #             0* /____\ 1*
+            #             2* /____\ 1*
             #               /\ 0  /\
             #              /2 \  /3 \
             #             /____\/____\
-            #           0or3   2*     2
+            #           0or3   0*     1
 
-            newFacet0 = [newVerts[2], newVerts[0], newVerts[1], newVerts[2], "d"]
-            newFacet1 = [newVerts[0], aFacet[1], newVerts[1], newVerts[0], "u"]
+            newFacet0 = [newVerts[0], newVerts[1], newVerts[2], newVerts[0], "d"]
+            newFacet1 = [newVerts[2], newVerts[1], aFacet[2], newVerts[2], "u"]
             newFacet2 = [aFacet[0], newVerts[0], newVerts[2], aFacet[0], "u"]
-            newFacet3 = [newVerts[2], newVerts[1], aFacet[2], newVerts[2], "u"]
+            newFacet3 = [newVerts[0], aFacet[1], newVerts[1], newVerts[0], "u"]
 
         if orient == "d":
             #          In the case of down facets, there will be three "top" facets
             #          and 1 "bottom" facet after subdivision; we build them in the sequence inside the triangles:
             #
-            #            1_____1*_____2
+            #            2_____1*_____1
             #             \ 2  /\ 3  /
             #              \  / 0\  /    Outside the triangle, a number is the index of the vertex in aFacet,
             #               \/____\/     and a number with an asterisk is the index of the vertex in newVerts.
-            #              0*\ 1  /2*
+            #              2*\ 1  /0*
             #                 \  /
             #                  \/
             #                 0or3
 
-            newFacet0 = [newVerts[0], newVerts[1], newVerts[2], newVerts[0], "u"]
-            newFacet2 = [newVerts[0], aFacet[1], newVerts[1], newVerts[0], "d"]
-            newFacet3 = [newVerts[2], newVerts[1], aFacet[2], newVerts[2], "d"]
+            newFacet0 = [newVerts[2], newVerts[0], newVerts[1], newVerts[2], "u"]
             newFacet1 = [aFacet[0], newVerts[0], newVerts[2], aFacet[0], "d"]
+            newFacet2 = [newVerts[2], newVerts[1], aFacet[2], newVerts[2], "d"]
+            newFacet3 = [newVerts[0], aFacet[1], newVerts[1], newVerts[0], "d"]
 
     if len(aFacet) == 6:
 
@@ -129,59 +129,59 @@ def divideFacet(aFacet):
 
             # Build new facets in the sequence inside the polygons:
 
-            #          1..........2   <-- North Pole
+            #          3..........2   <-- North Pole
             #           |        |
             #           |   1    |    Outside the polys, a number is the index of the vertex in aFacet,
             #           |        |    and a number with an asterisk is the index of the vertex in newVerts.
             #           |        |
-            #         0*|--------|1*           /\
+            #         2*|--------|1*           /\
             #           |\      /|  on globe  /__\
             #           | \ 0  / |  -------> /\  /\
             #           |  \  /  |          /__\/__\
             #           | 2 \/ 3 |
-            #       0or4''''''''''3
-            #               2*
+            #       0or4''''''''''1
+            #               0*
 
             newVerts = []
 
             for i in range(4):
-                if i != 1:
+                if i != 2:
                     # on iter == 1 we're going across the north pole - don't need this midpoint.
                     newVerts.append(GetGeodeticMidpoint(aFacet[i], aFacet[i + 1]))
 
-            newFacet0 = [newVerts[2], newVerts[0], newVerts[1], newVerts[2], "d"]  # triangle
-            newFacet1 = [newVerts[0], aFacet[1], aFacet[2], newVerts[1], newVerts[0], True]  # rectangle
+            newFacet0 = [newVerts[0], newVerts[1], newVerts[2], newVerts[0], "d"]  # triangle
+            newFacet1 = [newVerts[2], newVerts[1], aFacet[2], aFacet[3], newVerts[2], True]  # rectangle
             newFacet2 = [aFacet[0], newVerts[0], newVerts[2], aFacet[0], "u"]  # triangle
-            newFacet3 = [newVerts[2], newVerts[1], aFacet[3], newVerts[2], "u"]  # triangle
+            newFacet3 = [newVerts[0], aFacet[1], newVerts[1], newVerts[0], "u"]  # triangle
 
         else:
 
             # South pole rectangular facet
 
             #               1*
-            #          1..........2
+            #          3..........2
             #           | 2 /\ 3 |     Outside the polys, a number is the index of the vertex in aFacet,
             #           |  /  \  |     and a number with an asterisk is the index of the vertex in newVerts.
             #           | / 0  \ |
             #           |/      \|           ________
-            #         0*|--------|2*         \  /\  /
+            #         2*|--------|0*         \  /\  /
             #           |        |  on globe  \/__\/
             #           |   1    |  ------->   \  /
             #           |        |              \/
             #           |        |
-            #       0or4'''''''''3   <-- South Pole
+            #       0or4'''''''''1   <-- South Pole
 
             newVerts = []
 
             for i in range(4):
-                if i != 3:
+                if i != 0:
                     # on iter == 3 we're going across the south pole - don't need this midpoint
                     newVerts.append(GetGeodeticMidpoint(aFacet[i], aFacet[i + 1]))
 
-            newFacet0 = [newVerts[0], newVerts[1], newVerts[2], newVerts[0], "u"]  # triangle
-            newFacet1 = [aFacet[0], newVerts[0], newVerts[2], aFacet[3], aFacet[0], False]  # rectangle
-            newFacet2 = [newVerts[0], aFacet[1], newVerts[1], newVerts[0], "d"]  # triangle
-            newFacet3 = [newVerts[2], newVerts[1], aFacet[2], newVerts[2], "d"]  # triangle
+            newFacet0 = [newVerts[2], newVerts[0], newVerts[1], newVerts[2], "u"]  # triangle
+            newFacet1 = [aFacet[0], aFacet[1], newVerts[0], newVerts[2], aFacet[0], False]  # rectangle
+            newFacet2 = [newVerts[2], newVerts[1], aFacet[3], newVerts[2], "d"]  # triangle
+            newFacet3 = [newVerts[1], newVerts[0], aFacet[2], newVerts[1], "d"]  # triangle
 
 
     # In all cases, return the four facets made in a list
@@ -278,18 +278,18 @@ def main():
         if lvl == 0:
 
             # Need to build the first level from scratch - all rectangle facets.
-            # Important: For all facets, first vertex is always the most south-then-west, going clockwise thereafter.
+            # Important: For all facets, first vertex is always the most south-then-west, going counter-clockwise thereafter.
 
             # northern hemisphere
-            levelFacets[0].append([p0_n180, p90_n180, p90_n90, p0_n90, p0_n180, True])
-            levelFacets[0].append([p0_n90, p90_n90, p90_p0, p0_p0, p0_n90, True])
-            levelFacets[0].append([p0_p0, p90_p0, p90_p90, p0_p90, p0_p0, True])
-            levelFacets[0].append([p0_p90, p90_p90, p90_p180, p0_p180, p0_p90, True])
+            levelFacets[0].append([p0_n180, p0_n90, p90_n90, p90_n180, p0_n180, True])
+            levelFacets[0].append([p0_n90, p0_p0, p90_p0, p90_n90, p0_n90, True])
+            levelFacets[0].append([p0_p0, p0_p90, p90_p90, p90_p0, p0_p0, True])
+            levelFacets[0].append([p0_p90, p0_p180,  p90_p180, p90_p90, p0_p90, True])
             # southern hemisphere
-            levelFacets[0].append([n90_n180, p0_n180, p0_n90, n90_n90, n90_n180, False])
-            levelFacets[0].append([n90_n90, p0_n90, p0_p0, n90_p0, n90_n90, False])
-            levelFacets[0].append([n90_p0, p0_p0, p0_p90, n90_p90, n90_p0, False])
-            levelFacets[0].append([n90_p90, p0_p90, p0_p180, n90_p180, n90_p90, False])
+            levelFacets[0].append([n90_n180, n90_n90, p0_n90, p0_n180, n90_n180, False])
+            levelFacets[0].append([n90_n90, n90_p0,  p0_p0, p0_n90, n90_n90, False])
+            levelFacets[0].append([n90_p0, n90_p90, p0_p90,  p0_p0, n90_p0, False])
+            levelFacets[0].append([n90_p90, n90_p180, p0_p180, p0_p90, n90_p90, False])
 
             i = 0
             for f in levelFacets[lvl]:
