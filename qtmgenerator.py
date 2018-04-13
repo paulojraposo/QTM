@@ -9,16 +9,18 @@
 # This script makes a Quarternary Triangular Mesh (QTM) to tessellate the world based
 # on an octohedron, based on Geoffrey Dutton's conception:
 #
-# Dutton, Geoffrey H. "Planetary Modelling via Hierarchical Tessellation." In Procedings of the
-# AutoCarto 9 Conference, 462–71. Baltimore, MD, 1989.
+# Dutton, Geoffrey H. "Planetary Modelling via Hierarchical Tessellation." In Procedings
+# of the AutoCarto 9 Conference, 462–71. Baltimore, MD, 1989.
 # https://pdfs.semanticscholar.org/875e/12ce948012b3eced58c0f1470dba51ef87ef.pdf
 #
 # This script written by Paulo Raposo (pauloj.raposo [at] outlook.com) and Randall Brown
 # (ranbrown8448 [at] gmail.com). Under MIT license.
 #
-# Dependencies: nvector (see https://pypi.python.org/pypi/nvector and http://www.navlab.net/nvector),
-#               OGR Python bindings (packaged with GDAL).
+# Dependencies:
 #
+# * nvector (see https://pypi.python.org/pypi/nvector and http://www.navlab.net/nvector),
+# * OGR Python bindings (packaged with GDAL).
+
 
 
 import os, argparse, logging, datetime, sys
@@ -28,7 +30,7 @@ from osgeo import ogr, osr
 
 def GetGeodeticMidpoint(vert1, vert2):
     """Given two Vertices, return the geodetic midpoint of the great circle arc between them, on the WGS84 ellipsoid. Uses nvector."""
-    # see http://nvector.readthedocs.org/en/latest/src/overview.html?highlight=midpoint#description
+    # see http://nvector.readthedocs.org/en/latest/src/overview.html?highlight=midpoint#description.
     wgs84 = nv.FrameE(name='WGS84')
     n_EB_E_t0 = wgs84.GeoPoint(vert1[0], vert1[1], degrees=True).to_nvector()
     n_EB_E_t1 = wgs84.GeoPoint(vert2[0], vert2[1], degrees=True).to_nvector()
@@ -43,10 +45,10 @@ def constructGeometry(facet):
     """Accepting a list from this script that stores vertices, return an OGR Geometry polygon object."""
     ring = ogr.Geometry(ogr.wkbLinearRing)
     if len(facet) == 5:
-        # This is a triangle facet of format (vert,vert,vert,vert,orient)
+        # This is a triangle facet of format (vert,vert,vert,vert,orient).
         vertexTuples = facet[:4]
     if len(facet) == 6:
-        # This is a rectangle facet of format (vert,vert,vert,vert,vert,northboolean)
+        # This is a rectangle facet of format (vert,vert,vert,vert,vert,northboolean).
         vertexTuples = facet[:5]
     for vT in vertexTuples:
         ring.AddPoint(vT[1], vT[0]) # sequence: lon, lat (x,y)
@@ -58,13 +60,14 @@ def constructGeometry(facet):
 def divideFacet(aFacet):
     """Will always return four facets, given one, rectangle or triangle."""
 
-    # Important: For all facets, first vertex built is always the most south-then-west, going counter-clockwise thereafter.
+    # Important: For all facets, first vertex built is always the most south-then-west,
+    # going counter-clockwise thereafter.
 
     if len(aFacet) == 5:
 
         # This is a triangle facet.
 
-        orient = aFacet[4]  # get the string expressing this triangle's orientation
+        orient = aFacet[4]  # Get the string expressing this triangle's orientation.
 
         #       Cases, each needing subdivision:
         #                    ______           ___   ___
@@ -76,7 +79,7 @@ def divideFacet(aFacet):
 
 
         # Find the geodetic bisectors of the three sides, store in sequence using edges defined
-        # by aFacet vertex indeces: [0]&[1] , [1]&[2] , [2]&[3]
+        # by aFacet vertex indeces: [0]&[1] , [1]&[2] , [2]&[3].
         newVerts = []
         for i in range(3):
             newVerts.append(GetGeodeticMidpoint(aFacet[i], aFacet[i + 1]))
@@ -121,7 +124,7 @@ def divideFacet(aFacet):
 
         # This is a rectangle facet.
 
-        northBoolean = aFacet[5]  # true for north, false for south
+        northBoolean = aFacet[5]  # True for north, False for south.
 
         if northBoolean:
 
@@ -146,7 +149,7 @@ def divideFacet(aFacet):
 
             for i in range(4):
                 if i != 2:
-                    # on iter == 1 we're going across the north pole - don't need this midpoint.
+                    # On iter == 1 we're going across the north pole - don't need this midpoint.
                     newVerts.append(GetGeodeticMidpoint(aFacet[i], aFacet[i + 1]))
 
             newFacet0 = [newVerts[0], newVerts[1], newVerts[2], newVerts[0], "d"]  # triangle
@@ -156,7 +159,7 @@ def divideFacet(aFacet):
 
         else:
 
-            # South pole rectangular facet
+            # South pole rectangular facet.
 
             #               1*
             #          3..........2
@@ -175,7 +178,7 @@ def divideFacet(aFacet):
 
             for i in range(4):
                 if i != 0:
-                    # on iter == 3 we're going across the south pole - don't need this midpoint
+                    # On iter == 3 we're going across the south pole - don't need this midpoint.
                     newVerts.append(GetGeodeticMidpoint(aFacet[i], aFacet[i + 1]))
 
             newFacet0 = [newVerts[2], newVerts[0], newVerts[1], newVerts[2], "u"]  # triangle
@@ -184,7 +187,7 @@ def divideFacet(aFacet):
             newFacet3 = [newVerts[1], newVerts[0], aFacet[2], newVerts[1], "d"]  # triangle
 
 
-    # In all cases, return the four facets made in a list
+    # In all cases, return the four facets in a list.
     return [newFacet0, newFacet1, newFacet2, newFacet3]
 
 
@@ -195,18 +198,15 @@ def printandlog(msg):
 
 
 def main():
-    # Input shell arguments
+    # Input shell arguments.
     parser = argparse.ArgumentParser(description='Builds a Dutton QTM (see citations in source code) and outputs it as a GeoJSON file in WGS84 coordinates.')
-
-    # parser.add_argument('LEVELS', help='Integer number of levels to subdivide the QTM. Minimum of 1.')
-    parser.add_argument('OUTSHPFILEDIR', help='Full path to output directory for the product QTM shapefiles.')
+    parser.add_argument('OUTFILESDIR', help='Full path to output directory for the product QTM files.')
     parser.add_argument('LEVELS', help='Number of levels to generate. Give as an integer.')
     args = parser.parse_args()
-
     nLevels = int(args.LEVELS)
-    outFileDir = args.OUTSHPFILEDIR
+    outFileDir = args.OUTFILESDIR
 
-    # Log file setup
+    # Log file setup.
     dirPath = outFileDir
     logFile = os.path.join(dirPath, "qtm_creation_log.txt")
     logging.basicConfig(filename=logFile, level=logging.DEBUG)
@@ -216,7 +216,7 @@ def main():
 
     printandlog("Total levels requested: " + str(nLevels))
 
-    # The following WKT string from http://spatialreference.org/ref/epsg/4326/
+    # The following WKT string from http://spatialreference.org/ref/epsg/4326/.
     wktCoordSys = """GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]"""
 
     # Build the vertices of the initial 8 octohedron facets, as rectangles. Tuples: (Lat,Lon)
@@ -247,8 +247,8 @@ def main():
     n90_p90 = (-90.0, 90.0)
     n90_p180 = (-90.0, 180.0)
 
-    # Keeping track of levels
-    levelShapefiles = []
+    # Keeping track of levels.
+    levelOutputFiles = []
     levelFacets = {}
     ID = {}
     for lvl in range(nLevels):
@@ -260,13 +260,13 @@ def main():
         ID[lvl] = []
         previousLevel = None
 
-        # Prepare a shapefile for this level
-        outSHPFileName = "qtmlvl" + str(lvl) + ".geojson"
-        levelShapefiles.append(outSHPFileName)
+        # Prepare an output file for this level.
+        outFileName = "qtmlvl" + str(lvl) + ".geojson"
+        levelOutputFiles.append(outFileName)
         sRef = osr.SpatialReference()
         sRef.ImportFromWkt(wktCoordSys)
         driver = ogr.GetDriverByName('GeoJSON')
-        outFile = os.path.join(outFileDir, outSHPFileName)
+        outFile = os.path.join(outFileDir, outFileName)
         dst_ds = driver.CreateDataSource(outFile)
         fName = os.path.splitext(os.path.split(outFile)[1])[0]
         dst_layer = dst_ds.CreateLayer(fName, sRef, geom_type=ogr.wkbPolygon)
@@ -278,14 +278,15 @@ def main():
         if lvl == 0:
 
             # Need to build the first level from scratch - all rectangle facets.
-            # Important: For all facets, first vertex is always the most south-then-west, going counter-clockwise thereafter.
+            # Important: For all facets, first vertex is always the most south-then-west,
+            # going counter-clockwise thereafter.
 
-            # northern hemisphere
+            # Northern hemisphere.
             levelFacets[0].append([p0_n180, p0_n90, p90_n90, p90_n180, p0_n180, True])
             levelFacets[0].append([p0_n90, p0_p0, p90_p0, p90_n90, p0_n90, True])
             levelFacets[0].append([p0_p0, p0_p90, p90_p90, p90_p0, p0_p0, True])
             levelFacets[0].append([p0_p90, p0_p180,  p90_p180, p90_p90, p0_p90, True])
-            # southern hemisphere
+            # Southern hemisphere.
             levelFacets[0].append([n90_n180, n90_n90, p0_n90, p0_n180, n90_n180, False])
             levelFacets[0].append([n90_n90, n90_p0,  p0_p0, p0_n90, n90_n90, False])
             levelFacets[0].append([n90_p0, n90_p90, p0_p90,  p0_p0, n90_p0, False])
@@ -299,7 +300,7 @@ def main():
                 facetGeometry = constructGeometry(f)
                 feature.SetGeometry(facetGeometry)
                 dst_layer.CreateFeature(feature)
-                feature.Destroy()  # Destroy the feature to free resources
+                feature.Destroy()  # Destroy the feature to free resources.
                 i = i + 1
 
         else:
@@ -316,26 +317,26 @@ def main():
             k = 0
             for pf in previousFacets:
 
-                sys.stdout.flush()  # for progress messages on console
+                sys.stdout.flush()  # For progress messages on console.
 
                 theseFacets = divideFacet(pf)
                 j = 0
 
                 for tF in theseFacets:
-                    # Write to this level's shapefile
+                    # Write to this level's output file
                     ID[lvl].append(previousId[i] + str(j))
                     feature = ogr.Feature(layer_defn)
                     feature.SetField('ID', ID[lvl][k])
                     facetGeometry = constructGeometry(tF)
                     feature.SetGeometry(facetGeometry)
                     dst_layer.CreateFeature(feature)
-                    feature.Destroy()  # Destroy the feature to free resources
-                    # Keep track of facet info
+                    feature.Destroy()  # Destroy the feature to free resources.
+                    # Keep track of facet info.
                     levelFacets[lvl].append(tF)
                     j = j + 1
                     k = k + 1
 
-                # for progress messages on console
+                # For progress messages on console
                 prcnt = round((float(iterlabel) / float(nToSubdivide)) * 100, 3)
                 sys.stdout.write("\r")
                 sys.stdout.write("Progress: " + str(iterlabel) + " of " + str(nToSubdivide) + " | " + str(prcnt) + r" %... | Elapsed: " + str(datetime.datetime.now() - startTime))
@@ -343,9 +344,9 @@ def main():
                 i = i + 1
 
         if previousLevel:
-            del levelFacets[previousLevel]  # to free resources
+            del levelFacets[previousLevel]  # To free resources.
 
-        dst_ds.Destroy()  # Destroy the data source to free resouces
+        dst_ds.Destroy()  # Destroy the data source to free resouces.
 
     endTime = datetime.datetime.now()
     print("")
