@@ -21,23 +21,68 @@
 #
 
 
-import os, argparse, logging, datetime, sys
+import os, argparse, logging, datetime, sys, math
 import nvector as nv
 from osgeo import ogr, osr
 
+# This method can be used to create the QTM using great circle arcs, as opposed
+# to the small circles that are used by findCrossedMeridiansByLatitude' method.
+# def GetGeodeticMidpoint(vert1, vert2):
+#     """Given two Vertices, return the geodetic midpoint of the great circle arc between them, on the WGS84 ellipsoid. Uses nvector."""
+#     # see http://nvector.readthedocs.org/en/latest/src/overview.html?highlight=midpoint#description
+#     wgs84 = nv.FrameE(name='WGS84')
+#     n_EB_E_t0 = wgs84.GeoPoint(vert1[0], vert1[1], degrees=True).to_nvector()
+#     n_EB_E_t1 = wgs84.GeoPoint(vert2[0], vert2[1], degrees=True).to_nvector()
+#     path = nv.GeoPath(n_EB_E_t0, n_EB_E_t1)
+#     print(path)
+#     halfway = 0.5
+#     g_EB_E_ti = path.interpolate(halfway).to_geo_point()
+#     lat_ti, lon_ti = g_EB_E_ti.latitude_deg, g_EB_E_ti.longitude_deg
+#     return (float(lat_ti), float(lon_ti))
 
-def GetGeodeticMidpoint(vert1, vert2):
-    """Given two Vertices, return the geodetic midpoint of the great circle arc between them, on the WGS84 ellipsoid. Uses nvector."""
-    # see http://nvector.readthedocs.org/en/latest/src/overview.html?highlight=midpoint#description
-    wgs84 = nv.FrameE(name='WGS84')
-    n_EB_E_t0 = wgs84.GeoPoint(vert1[0], vert1[1], degrees=True).to_nvector()
-    n_EB_E_t1 = wgs84.GeoPoint(vert2[0], vert2[1], degrees=True).to_nvector()
-    path = nv.GeoPath(n_EB_E_t0, n_EB_E_t1)
-    halfway = 0.5
-    g_EB_E_ti = path.interpolate(halfway).to_geo_point()
-    lat_ti, lon_ti = g_EB_E_ti.latitude_deg, g_EB_E_ti.longitude_deg
-    return (float(lat_ti), float(lon_ti))
+# findCrossedMeridiansByLatitude' method for finding pair of meridians at which a great circle defined by
+# two points crosses the given latitude.
+# Found at https://github.com/chrisfindCrossedMeridiansByLatitude/geodesy/blob/master/latlon-spherical.js
+def findCrossedMeridiansByLatitude(vert1, vert2, newLat):
+    theta = math.radians(newLat)
 
+    theta1 = math.radians(vert1[0])
+    lamb1 = math.radians(vert1[1])
+    theta2 = math.radians(vert2[0])
+    lamb2 = math.radians(vert2[1])
+
+    dlamb = lamb2 - lamb1
+
+    x = math.sin(theta1) * math.cos(theta2) * math.cos(theta) * math.sin(dlamb)
+    y = math.sin(theta1) * math.cos(theta2) * math.cos(theta) * math.cos(dlamb) - math.cos(theta1) * math.sin(theta2) * math.cos(theta)
+    z = math.cos(theta1) * math.cos(theta2) * math.sin(theta) * math.sin(dlamb)
+
+    if (z*z > x*x + y*y):
+         print("Great circle doesn't reach latitude.")
+
+    lambm = math.atan2(-y, x)
+    dlambI = math.acos(z / math.sqrt(x*x + y*y))
+
+    lambI1 = lamb1 + lambm - dlambI
+    lambI2 = lamb1 + lambm + dlambI
+
+    lon1 = (math.degrees(lambI1) + 540) % 360-180
+    lon2 = (math.degrees(lambI2) + 540) % 360-180
+
+    return lon1, lon2
+
+def lonCheck(lon1, lon2, pointlon1, pointlon2):
+
+    lesser, greater = sorted([pointlon1, pointlon2])
+    if lon1 > lesser and lon1 < greater:
+        return lon1
+    else:
+        return lon2
+
+def GetMidpoint(vert1, vert2):
+    midLat = (vert1[0] + vert2[0]) / 2
+    midLon = (vert1[1] + vert2[1]) / 2
+    return(float(midLat), float(midLon))
 
 def constructGeometry(facet):
     """Accepting a list from this script that stores vertices, return an OGR Geometry polygon object."""
@@ -56,6 +101,7 @@ def constructGeometry(facet):
 
 
 def divideFacet(aFacet):
+
     """Will always return four facets, given one, rectangle or triangle."""
 
     # Important: For all facets, first vertex built is always the most south-then-west, going counter-clockwise thereafter.
@@ -78,8 +124,19 @@ def divideFacet(aFacet):
         # Find the geodetic bisectors of the three sides, store in sequence using edges defined
         # by aFacet vertex indeces: [0]&[1] , [1]&[2] , [2]&[3]
         newVerts = []
+
         for i in range(3):
-            newVerts.append(GetGeodeticMidpoint(aFacet[i], aFacet[i + 1]))
+            if aFacet[i][0] == aFacet[i+1][0] or aFacet[i][1] == aFacet[i+1][1]:
+                newVerts.append(GetMidpoint(aFacet[i], aFacet[i+1]))
+            else:
+                newLat = (aFacet[i][0] + aFacet[i+1][0]) / 2
+                newLon1, newLon2 = findCrossedMeridiansByLatitude(aFacet[i], aFacet[i + 1], newLat)
+
+                newLon = lonCheck(newLon1, newLon2, aFacet[i][1], aFacet[i+1][1])
+
+                newVert = (newLat, newLon)
+                newVerts.append(newVert)
+
 
         if orient == "u":
             #          In the case of up facets, there will be one "top" facet
@@ -147,7 +204,18 @@ def divideFacet(aFacet):
             for i in range(4):
                 if i != 2:
                     # on iter == 1 we're going across the north pole - don't need this midpoint.
-                    newVerts.append(GetGeodeticMidpoint(aFacet[i], aFacet[i + 1]))
+
+                    if aFacet[i][0] == aFacet[i+1][0] or aFacet[i][1] == aFacet[i+1][1]:
+                        newVerts.append(GetMidpoint(aFacet[i], aFacet[i+1]))
+                    else:
+                        newLat = (aFacet[i][0] + aFacet[i+1][0])/2
+                        newLon1, newLon2 = findCrossedMeridiansByLatitude(aFacet[i], aFacet[i + 1], newLat)
+
+                        newLon = lonCheck(newLon1, newLon2, aFacet[i][1], aFacet[i+1][1])
+
+                        newVert = (newLat, newLon)
+                        newVerts.append(newVert)
+
 
             newFacet0 = [newVerts[0], newVerts[1], newVerts[2], newVerts[0], "d"]  # triangle
             newFacet1 = [newVerts[2], newVerts[1], aFacet[2], aFacet[3], newVerts[2], True]  # rectangle
@@ -176,7 +244,17 @@ def divideFacet(aFacet):
             for i in range(4):
                 if i != 0:
                     # on iter == 3 we're going across the south pole - don't need this midpoint
-                    newVerts.append(GetGeodeticMidpoint(aFacet[i], aFacet[i + 1]))
+                    if aFacet[i][0] == aFacet[i+1][0] or aFacet[i][1] == aFacet[i+1][1]:
+                        newVerts.append(GetMidpoint(aFacet[i], aFacet[i+1]))
+                    else:
+                        newLat = (aFacet[i][0] + aFacet[i+1][0])/2
+                        newLon1, newLon2 = findCrossedMeridiansByLatitude(aFacet[i], aFacet[i + 1], newLat)
+
+                        newLon = lonCheck(newLon1, newLon2, aFacet[i][1], aFacet[i+1][1])
+
+                        newVert = newLat, newLon
+                        newVerts.append(newVert)
+
 
             newFacet0 = [newVerts[2], newVerts[0], newVerts[1], newVerts[2], "u"]  # triangle
             newFacet1 = [aFacet[0], aFacet[1], newVerts[0], newVerts[2], aFacet[0], False]  # rectangle
@@ -197,14 +275,12 @@ def printandlog(msg):
 def main():
     # Input shell arguments
     parser = argparse.ArgumentParser(description='Builds a Dutton QTM (see citations in source code) and outputs it as a GeoJSON file in WGS84 coordinates.')
-
-    # parser.add_argument('LEVELS', help='Integer number of levels to subdivide the QTM. Minimum of 1.')
-    parser.add_argument('OUTSHPFILEDIR', help='Full path to output directory for the product QTM shapefiles.')
+    parser.add_argument('OUTFILEDIR', help='Full path to output directory for the product QTM shapefiles.')
     parser.add_argument('LEVELS', help='Number of levels to generate. Give as an integer.')
     args = parser.parse_args()
 
     nLevels = int(args.LEVELS)
-    outFileDir = args.OUTSHPFILEDIR
+    outFileDir = args.OUTFILEDIR
 
     # Log file setup
     dirPath = outFileDir
