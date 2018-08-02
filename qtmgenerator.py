@@ -272,7 +272,7 @@ def main():
         dst_layer = dst_ds.CreateLayer(fName, sRef, geom_type=ogr.wkbPolygon)
         levelFieldName = 'QTMID'
         layer_defn = dst_layer.GetLayerDefn()
-        new_field = ogr.FieldDefn(levelFieldName, ogr.OFTInteger)
+        new_field = ogr.FieldDefn(levelFieldName, ogr.OFTString)
         dst_layer.CreateField(new_field)
 
         if lvl == 0:
@@ -295,7 +295,7 @@ def main():
             for f in levelFacets[lvl]:
                 QTMID[0].append(str(i + 1))
                 feature = ogr.Feature(layer_defn)
-                feature.SetField('QTMID', QTMID[0][i])
+                feature.SetField('QTMID', str(QTMID[0][i]))
                 facetGeometry = constructGeometry(f)
                 feature.SetGeometry(facetGeometry)
                 dst_layer.CreateFeature(feature)
@@ -325,7 +325,7 @@ def main():
                     # Write to this level's shapefile
                     QTMID[lvl].append(previousId[i] + str(j))
                     feature = ogr.Feature(layer_defn)
-                    feature.SetField('QTMID', QTMID[lvl][k])
+                    feature.SetField('QTMID', str(QTMID[lvl][k]))
                     facetGeometry = constructGeometry(tF)
                     feature.SetGeometry(facetGeometry)
                     dst_layer.CreateFeature(feature)
