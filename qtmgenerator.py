@@ -275,7 +275,7 @@ def printandlog(msg):
 def main():
     # Input shell arguments
     parser = argparse.ArgumentParser(description='Builds a Dutton QTM (see citations in source code) and outputs it as a GeoJSON file in WGS84 coordinates.')
-    parser.add_argument('OUTFILEDIR', help='Full path to output directory for the product QTM shapefiles.')
+    parser.add_argument('OUTFILEDIR', help='Full path to output directory for the product QTM shapefiles. The directory must already exist.')
     parser.add_argument('LEVELS', help='Number of levels to generate. Give as an integer.')
     args = parser.parse_args()
 
