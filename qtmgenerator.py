@@ -288,7 +288,7 @@ def main():
     startTime = datetime.datetime.now()
     printandlog("Starting, " + str(startTime))
 
-    printandlog("Total levels requested: " + str(nLevels))
+    printandlog("Levels requested are 0 through " + str(nLevels -1) + " (i.e., " + str(nLevels) + " in total).")
 
     # The following WKT string from http://spatialreference.org/ref/epsg/4326/
     wktCoordSys = """GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]"""
@@ -326,9 +326,6 @@ def main():
     levelFacets = {}
     QTMID = {}
     for lvl in range(nLevels):
-
-        print("")
-        printandlog("Working on level " + str(lvl))
 
         levelFacets[lvl] = []
         QTMID[lvl] = []
@@ -382,6 +379,8 @@ def main():
 
             # Build further levels by subdividing the facets from the previous level.
 
+            print("")
+
             previousLevel = lvl - 1
             previousFacets = levelFacets[previousLevel]
             previousId = QTMID[previousLevel]
@@ -414,7 +413,7 @@ def main():
                 # For progress messages on console.
                 prcnt = round((float(iterlabel) / float(nToSubdivide)) * 100, 3)
                 sys.stdout.write("\r")
-                sys.stdout.write("Progress: " + str(iterlabel) + " of " + str(nToSubdivide) + " | " + str(prcnt) + r" %... | Elapsed: " + str(datetime.datetime.now() - startTime))
+                sys.stdout.write("Level " + str(lvl) + ", progress: " + str(iterlabel) + " of " + str(nToSubdivide) + " | " + str(prcnt) + r" %... | Elapsed: " + str(datetime.datetime.now() - startTime))
                 iterlabel += 1
                 i = i + 1
 
