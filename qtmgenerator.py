@@ -14,12 +14,11 @@
 # https://pdfs.semanticscholar.org/875e/12ce948012b3eced58c0f1470dba51ef87ef.pdf
 #
 # This script written by Paulo Raposo (pauloj.raposo [at] outlook.com) and Randall Brown
-# (ranbrown8448 [at] gmail.com). Under MIT license.
+# (ranbrown8448 [at] gmail.com). Under MIT license (see LICENSE file).
 #
-# Dependencies: nvector (see https://pypi.python.org/pypi/nvector and http://www.navlab.net/nvector),
-#               OGR Python bindings (packaged with GDAL).
-#
-
+# Dependencies: 
+#   - nvector (see https://pypi.python.org/pypi/nvector and http://www.navlab.net/nvector),
+#   - OGR Python bindings (packaged with GDAL).
 
 import os, argparse, logging, datetime, sys, math
 import nvector as nv
@@ -40,10 +39,12 @@ from osgeo import ogr, osr
 #     lat_ti, lon_ti = g_EB_E_ti.latitude_deg, g_EB_E_ti.longitude_deg
 #     return (float(lat_ti), float(lon_ti))
 
-# findCrossedMeridiansByLatitude' method for finding pair of meridians at which a great circle defined by
-# two points crosses the given latitude.
-# Found at https://github.com/chrisfindCrossedMeridiansByLatitude/geodesy/blob/master/latlon-spherical.js
 def findCrossedMeridiansByLatitude(vert1, vert2, newLat):
+
+    """For finding pair of meridians at which a great circle defined by two points crosses the given latitude."""
+    
+    # Credit to Chris Veness, https://github.com/chrisveness/geodesy.
+
     theta = math.radians(newLat)
 
     theta1 = math.radians(vert1[0])
@@ -80,11 +81,13 @@ def lonCheck(lon1, lon2, pointlon1, pointlon2):
         return lon2
 
 def GetMidpoint(vert1, vert2):
+
     midLat = (vert1[0] + vert2[0]) / 2
     midLon = (vert1[1] + vert2[1]) / 2
     return(float(midLat), float(midLon))
 
 def constructGeometry(facet):
+
     """Accepting a list from this script that stores vertices, return an OGR Geometry polygon object."""
     ring = ogr.Geometry(ogr.wkbLinearRing)
     if len(facet) == 5:
@@ -98,7 +101,6 @@ def constructGeometry(facet):
     poly = ogr.Geometry(ogr.wkbPolygon)
     poly.AddGeometry(ring)
     return poly
-
 
 def divideFacet(aFacet):
 
@@ -136,7 +138,6 @@ def divideFacet(aFacet):
 
                 newVert = (newLat, newLon)
                 newVerts.append(newVert)
-
 
         if orient == "u":
             #          In the case of up facets, there will be one "top" facet
@@ -216,7 +217,6 @@ def divideFacet(aFacet):
                         newVert = (newLat, newLon)
                         newVerts.append(newVert)
 
-
             newFacet0 = [newVerts[0], newVerts[1], newVerts[2], newVerts[0], "d"]  # triangle
             newFacet1 = [newVerts[2], newVerts[1], aFacet[2], aFacet[3], newVerts[2], True]  # rectangle
             newFacet2 = [aFacet[0], newVerts[0], newVerts[2], aFacet[0], "u"]  # triangle
@@ -255,34 +255,32 @@ def divideFacet(aFacet):
                         newVert = newLat, newLon
                         newVerts.append(newVert)
 
-
             newFacet0 = [newVerts[2], newVerts[0], newVerts[1], newVerts[2], "u"]  # triangle
             newFacet1 = [aFacet[0], aFacet[1], newVerts[0], newVerts[2], aFacet[0], False]  # rectangle
             newFacet2 = [newVerts[2], newVerts[1], aFacet[3], newVerts[2], "d"]  # triangle
             newFacet3 = [newVerts[1], newVerts[0], aFacet[2], newVerts[1], "d"]  # triangle
 
-
     # In all cases, return the four facets made in a list
     return [newFacet0, newFacet1, newFacet2, newFacet3]
 
-
 def printandlog(msg):
+
     """Given a string, this will both log it and print it to the console."""
     print(msg)
     logging.info(msg)
 
-
 def main():
-    # Input shell arguments
+
+    # Input shell arguments.
     parser = argparse.ArgumentParser(description='Builds a Dutton QTM (see citations in source code) and outputs it as a GeoJSON file in WGS84 coordinates.')
-    parser.add_argument('OUTFILEDIR', help='Full path to output directory for the product QTM shapefiles. The directory must already exist.')
+    parser.add_argument('OUTFILEDIR', help='Full path to output directory for the product QTM GeoJSON files. The directory must already exist.')
     parser.add_argument('LEVELS', help='Number of levels to generate. Give as an integer.')
     args = parser.parse_args()
 
     nLevels = int(args.LEVELS)
     outFileDir = args.OUTFILEDIR
 
-    # Log file setup
+    # Log file setup.
     dirPath = outFileDir
     logFile = os.path.join(dirPath, "qtm_creation_log.txt")
     logging.basicConfig(filename=logFile, level=logging.DEBUG)
@@ -324,7 +322,7 @@ def main():
     n90_p180 = (-90.0, 180.0)
 
     # Keeping track of levels
-    levelShapefiles = []
+    levelOutputFiles = []
     levelFacets = {}
     QTMID = {}
     for lvl in range(nLevels):
@@ -336,13 +334,13 @@ def main():
         QTMID[lvl] = []
         previousLevel = None
 
-        # Prepare a shapefile for this level
-        outSHPFileName = "qtmlvl" + str(lvl) + ".geojson"
-        levelShapefiles.append(outSHPFileName)
+        # Prepare an output file for this level
+        outFileName = "qtmlvl" + str(lvl) + ".geojson"
+        levelOutputFiles.append(outFileName)
         sRef = osr.SpatialReference()
         sRef.ImportFromWkt(wktCoordSys)
         driver = ogr.GetDriverByName('GeoJSON')
-        outFile = os.path.join(outFileDir, outSHPFileName)
+        outFile = os.path.join(outFileDir, outFileName)
         dst_ds = driver.CreateDataSource(outFile)
         fName = os.path.splitext(os.path.split(outFile)[1])[0]
         dst_layer = dst_ds.CreateLayer(fName, sRef, geom_type=ogr.wkbPolygon)
@@ -354,14 +352,16 @@ def main():
         if lvl == 0:
 
             # Need to build the first level from scratch - all rectangle facets.
+
             # Important: For all facets, first vertex is always the most south-then-west, going counter-clockwise thereafter.
 
-            # northern hemisphere
+            # Northern Hemisphere
             levelFacets[0].append([p0_n180, p0_n90, p90_n90, p90_n180, p0_n180, True])
             levelFacets[0].append([p0_n90, p0_p0, p90_p0, p90_n90, p0_n90, True])
             levelFacets[0].append([p0_p0, p0_p90, p90_p90, p90_p0, p0_p0, True])
             levelFacets[0].append([p0_p90, p0_p180,  p90_p180, p90_p90, p0_p90, True])
-            # southern hemisphere
+
+            # Southern Hemisphere
             levelFacets[0].append([n90_n180, n90_n90, p0_n90, p0_n180, n90_n180, False])
             levelFacets[0].append([n90_n90, n90_p0,  p0_p0, p0_n90, n90_n90, False])
             levelFacets[0].append([n90_p0, n90_p90, p0_p90,  p0_p0, n90_p0, False])
@@ -392,26 +392,26 @@ def main():
             k = 0
             for pf in previousFacets:
 
-                sys.stdout.flush()  # for progress messages on console
+                sys.stdout.flush()  # For progress messages on console.
 
                 theseFacets = divideFacet(pf)
+
                 j = 0
 
                 for tF in theseFacets:
-                    # Write to this level's shapefile
+                    # Write to this level's geometry file.
                     QTMID[lvl].append(previousId[i] + str(j))
                     feature = ogr.Feature(layer_defn)
                     feature.SetField('QTMID', str(QTMID[lvl][k]))
                     facetGeometry = constructGeometry(tF)
                     feature.SetGeometry(facetGeometry)
                     dst_layer.CreateFeature(feature)
-                    feature.Destroy()  # Destroy the feature to free resources
-                    # Keep track of facet info
-                    levelFacets[lvl].append(tF)
+                    feature.Destroy()           # Destroy the feature to free resources.
+                    levelFacets[lvl].append(tF) # Keep track of facet info.
                     j = j + 1
                     k = k + 1
 
-                # for progress messages on console
+                # For progress messages on console.
                 prcnt = round((float(iterlabel) / float(nToSubdivide)) * 100, 3)
                 sys.stdout.write("\r")
                 sys.stdout.write("Progress: " + str(iterlabel) + " of " + str(nToSubdivide) + " | " + str(prcnt) + r" %... | Elapsed: " + str(datetime.datetime.now() - startTime))
@@ -419,17 +419,17 @@ def main():
                 i = i + 1
 
         if previousLevel:
-            del levelFacets[previousLevel]  # to free resources
+            del levelFacets[previousLevel]  # Free resources.
 
-        dst_ds.Destroy()  # Destroy the data source to free resouces
+        dst_ds.Destroy()  # Destroy the data source to free resouces.
 
     endTime = datetime.datetime.now()
-    print("")
+    print("\n")
     printandlog("Finished, " + str(endTime))
     elapsed = endTime - startTime
     printandlog("Total time for " + str(nLevels) + " levels: " + str(elapsed))
 
-    # fin
+    # fin.
     exit()
 
 
